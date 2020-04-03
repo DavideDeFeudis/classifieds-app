@@ -77,12 +77,27 @@ app.use(
           name: args.productInput.name,
           description: args.productInput.description,
           price: +args.productInput.price, // + converts to number
+          // for now we hard code the creator id
+          // later it will be passed automatically
+          // mongoose converts it to an objectId for mongo
+          creator: "5e879736a6bbebd6f2539dda",
         });
         // we must return to make graphql wait for async operation to complete
         return product
           .save()
           .then((result) => {
-            return result;
+            // we don't use the result, instead we get the creator
+            return User.findById("5e879736a6bbebd6f2539dda");
+          })
+          .then((user) => {
+            if (!user) throw new Error("user does not exists");
+            // add product to productsList of this user (or just the ID)
+            user.productsList.push(product);
+            return user.save();
+          })
+          .then((user) => {
+            // don't use user, instead return product to the UI
+            return product;
           })
           .catch((err) => {
             throw err;
@@ -113,22 +128,7 @@ app.use(
           });
       },
     },
-    /*
-    add graphiql: true to use http://localhost:3000/graphql
-    example queries:
-    query {
-        products {
-            name, description
-        }
-    }
-
-    mutation {
-        createProduct(productInput: { name: "name1", description: "description asdfkjasdf", price: 10 }) 
-        {
-        _id, name, description, price
-        }
-    }
-    */
+    // add graphiql: true to use http://localhost:3000/graphql
     graphiql: true,
   })
 );
