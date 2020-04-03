@@ -1,15 +1,15 @@
+require("dotenv").config();
 const express = require("express");
 // is a middleware function that forwards queries to the resolver
 const graphqlHttp = require("express-graphql");
 // takes a string that will be used to generate the schema
 const { buildSchema } = require("graphql");
-
+const mongoose = require("mongoose");
+const Product = require("./models/product");
 const app = express();
 const port = 3000;
 
 app.use(express.json());
-
-const products = [];
 
 // all requests are sent to one end point
 app.use(
@@ -46,17 +46,30 @@ app.use(
     // resolvers, must match schema entries
     rootValue: {
       products: () => {
-        return products;
+        // we must return to make graphql wait for async operation to complete
+        return Product.find()
+          .then(products => {
+            return products;
+          })
+          .catch(err => {
+            throw err;
+          });
       },
       createProduct: args => {
-        const product = {
-          _id: Math.random().toString(),
+        const product = new Product({
           name: args.productInput.name,
           description: args.productInput.description,
           price: +args.productInput.price // + converts to number
-        };
-        products.push(product);
-        return product;
+        });
+        // we must return to make graphql wait for async operation to complete
+        return product
+          .save()
+          .then(result => {
+            return result;
+          })
+          .catch(err => {
+            throw err;
+          });
       }
     },
     /*
@@ -79,6 +92,18 @@ app.use(
   })
 );
 
-app.listen(port, () => {
-  console.log("Example app listening on port 3000");
-});
+mongoose
+  .connect(process.env.MONGO_URL, {
+    useNewUrlParser: true,
+    useCreateIndex: true,
+    useFindAndModify: false,
+    useUnifiedTopology: true
+  })
+  .then(() => {
+    app.listen(port, () => {
+      console.log("Example app listening on port 3000");
+    });
+  })
+  .catch(err => {
+    console.log("Error on DB connection: " + err);
+  });
