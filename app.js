@@ -5,7 +5,9 @@ const graphqlHttp = require("express-graphql");
 // takes a string that will be used to generate the schema
 const { buildSchema } = require("graphql");
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 const Product = require("./models/product");
+const User = require("./models/user");
 const app = express();
 const port = 3000;
 
@@ -16,6 +18,9 @@ app.use(
   "/graphql",
   graphqlHttp({
     // the schema defines the queries that can be handled
+    // input is data coming from the UI passed as args in mutations
+    // pw in type User is nullable cause must be set to null to prevent being sent to UI
+    // pw in input UserInput is non nullable (!) cause required upon signup and login
     schema: buildSchema(`
         type Product {
             _id: ID!
@@ -24,10 +29,21 @@ app.use(
             price: Float!
         }
 
+        type User {
+            _id: ID!
+            email: String!
+            pw: String 
+        }
+
         input ProductInput {
             name: String!
             description: String!
             price: Float!
+        }
+        
+        input UserInput {
+            email: String!
+            pw: String! 
         }
 
         type RootQuery {
@@ -36,6 +52,7 @@ app.use(
 
         type RootMutation {
             createProduct(productInput: ProductInput): Product
+            createUser(userInput: UserInput): User
         }
 
         schema {
@@ -48,29 +65,53 @@ app.use(
       products: () => {
         // we must return to make graphql wait for async operation to complete
         return Product.find()
-          .then(products => {
+          .then((products) => {
             return products;
           })
-          .catch(err => {
+          .catch((err) => {
             throw err;
           });
       },
-      createProduct: args => {
+      createProduct: (args) => {
         const product = new Product({
           name: args.productInput.name,
           description: args.productInput.description,
-          price: +args.productInput.price // + converts to number
+          price: +args.productInput.price, // + converts to number
         });
         // we must return to make graphql wait for async operation to complete
         return product
           .save()
-          .then(result => {
+          .then((result) => {
             return result;
           })
-          .catch(err => {
+          .catch((err) => {
             throw err;
           });
-      }
+      },
+      createUser: (args) => {
+        // we must return to make graphql wait for async operation to complete
+        // check if user with this email already exists in db
+        return User.findOne({ email: args.userInput.email })
+          .then((user) => {
+            if (user) throw new Error("a user with this email already exists");
+            return bcrypt.hash(args.userInput.pw, 10);
+          })
+          .then((hashedPw) => {
+            const user = new User({
+              email: args.userInput.email,
+              pw: hashedPw,
+            });
+            return user.save();
+          })
+          .then((createdUser) => {
+            // this is the user sent to the UI, set pw to null
+            // _doc contains props excluding metadata (must use if spread)
+            return { ...createdUser._doc, pw: null };
+          })
+          .catch((err) => {
+            throw err;
+          });
+      },
     },
     /*
     add graphiql: true to use http://localhost:3000/graphql
@@ -88,7 +129,7 @@ app.use(
         }
     }
     */
-    graphiql: true
+    graphiql: true,
   })
 );
 
@@ -97,13 +138,13 @@ mongoose
     useNewUrlParser: true,
     useCreateIndex: true,
     useFindAndModify: false,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
   })
   .then(() => {
     app.listen(port, () => {
       console.log("Example app listening on port 3000");
     });
   })
-  .catch(err => {
+  .catch((err) => {
     console.log("Error on DB connection: " + err);
   });

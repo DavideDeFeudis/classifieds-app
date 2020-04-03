@@ -12,7 +12,11 @@ const productSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true
+  },
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
   }
 });
 
-module.exports = mongoose.model("Product", productSchema );
+module.exports = mongoose.model("Product", productSchema);
