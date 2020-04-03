@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/DavideDeFeudis/classifieds-app#readme",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "express-graphql": "^0.9.0",
+    "graphql": "^15.0.0"
   }
 }
