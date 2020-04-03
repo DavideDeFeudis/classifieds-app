@@ -9,18 +9,33 @@ const port = 3000;
 
 app.use(express.json());
 
+const products = [];
+
 // all requests are sent to one end point
 app.use(
   "/graphql",
   graphqlHttp({
     // the schema defines the queries that can be handled
     schema: buildSchema(`
+        type Product {
+            _id: ID!
+            name: String!
+            description: String!
+            price: Float!
+        }
+
+        input ProductInput {
+            name: String!
+            description: String!
+            price: Float!
+        }
+
         type RootQuery {
-            products: [String!]!
+            products: [Product!]!
         }
 
         type RootMutation {
-            createProduct(name: String): String
+            createProduct(productInput: ProductInput): Product
         }
 
         schema {
@@ -31,21 +46,33 @@ app.use(
     // resolvers, must match schema entries
     rootValue: {
       products: () => {
-        return ["product 1", "product 2", "product 3"];
+        return products;
       },
       createProduct: args => {
-        console.log(`product created ${args.name}`);
-        return args.name;
+        const product = {
+          _id: Math.random().toString(),
+          name: args.productInput.name,
+          description: args.productInput.description,
+          price: +args.productInput.price // + converts to number
+        };
+        products.push(product);
+        return product;
       }
     },
     /*
     add graphiql: true to use http://localhost:3000/graphql
     example queries:
     query {
-        products
+        products {
+            name, description
+        }
     }
+
     mutation {
-        createProduct(name: "product 4")
+        createProduct(productInput: { name: "name1", description: "description asdfkjasdf", price: 10 }) 
+        {
+        _id, name, description, price
+        }
     }
     */
     graphiql: true
