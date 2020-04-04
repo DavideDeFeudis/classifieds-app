@@ -21,6 +21,12 @@ module.exports = buildSchema(`
         productsList: [Product!]!
     }
 
+    type AuthData {
+        userId: ID!
+        token: String!
+        tokenExpiry: Int!
+    }
+
     input ProductInput {
         name: String!
         description: String!
@@ -34,6 +40,7 @@ module.exports = buildSchema(`
 
     type RootQuery {
         products: [Product!]!
+        login(email: String!, pw: String!): AuthData!
     }
 
     type RootMutation {
