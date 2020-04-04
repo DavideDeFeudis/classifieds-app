@@ -34,76 +34,63 @@ const getProductsList = async (ids) => {
 };
 
 module.exports = {
-  products: () => {
-    // we must return to make graphql wait for async operation to complete
-    return Product.find()
-      .then((products) => {
-        return products.map((product) => {
-          return {
-            ...product._doc,
-            creator: getCreator.bind(this, product._doc.creator),
-          };
-        });
-      })
-      .catch((err) => {
-        throw err;
-      });
-  },
-  createProduct: (args) => {
-    const product = new Product({
-      name: args.productInput.name,
-      description: args.productInput.description,
-      price: +args.productInput.price, // + converts to number
-      // for now we hard code the creator id
-      // later it will be passed automatically
-      // mongoose converts it to an objectId for mongo
-      creator: "5e8828b4b93b8edc514dbbc1",
-    });
-    // we must return to make graphql wait for async operation to complete
-    return product
-      .save()
-      .then((result) => {
-        // we don't use the result, instead we get the creator
-        return User.findById("5e8828b4b93b8edc514dbbc1");
-      })
-      .then((user) => {
-        if (!user) throw new Error("user does not exists");
-        // add product to productsList of this user (or just the ID)
-        user.productsList.push(product);
-        return user.save();
-      })
-      .then((user) => {
+  products: async () => {
+    try {
+      const products = await Product.find();
+      return products.map((product) => {
         return {
           ...product._doc,
           creator: getCreator.bind(this, product._doc.creator),
         };
-      })
-      .catch((err) => {
-        throw err;
       });
+    } catch (err) {
+      throw err;
+    }
   },
-  createUser: (args) => {
-    // we must return to make graphql wait for async operation to complete
-    // check if user with this email already exists in db
-    return User.findOne({ email: args.userInput.email })
-      .then((user) => {
-        if (user) throw new Error("a user with this email already exists");
-        return bcrypt.hash(args.userInput.pw, 10);
-      })
-      .then((hashedPw) => {
-        const user = new User({
-          email: args.userInput.email,
-          pw: hashedPw,
-        });
-        return user.save();
-      })
-      .then((createdUser) => {
-        // this is the user sent to the UI, set pw to null
-        // _doc contains props excluding metadata (must use if spread)
-        return { ...createdUser._doc, pw: null };
-      })
-      .catch((err) => {
-        throw err;
+  createProduct: async (args) => {
+    try {
+      const product = new Product({
+        name: args.productInput.name,
+        description: args.productInput.description,
+        price: +args.productInput.price, // + converts to number
+        // for now we hard code the creator id
+        // mongoose converts it to an objectId for mongo
+        creator: "5e8828b4b93b8edc514dbbc1",
       });
+
+      const savedProduct = await product.save();
+      const user = await User.findById("5e8828b4b93b8edc514dbbc1"); // find the creator
+      if (!user) throw new Error("user does not exists");
+      // add product to productsList of this user (or just the product id)
+      await user.productsList.push(savedProduct);
+      await user.save();
+      // this is the product that we are required to return (specified in grql schema)
+      return {
+        ...savedProduct._doc,
+        creator: getCreator.bind(this, savedProduct._doc.creator),
+      };
+    } catch (err) {
+      throw err;
+    }
+  },
+  createUser: async (args) => {
+    try {
+      // check if user with this email already exists in db
+      const existingUser = await User.findOne({ email: args.userInput.email });
+      if (existingUser)
+        throw new Error("a user with this email already exists");
+      const hashedPw = await bcrypt.hash(args.userInput.pw, 10);
+      // build new user with hashed pw
+      const user = new User({
+        email: args.userInput.email,
+        pw: hashedPw,
+      });
+      const createdUser = await user.save();
+      // this is the user sent to the UI, set pw to null
+      // _doc contains props excluding metadata (must use if spread)
+      return { ...createdUser._doc, pw: null };
+    } catch (err) {
+      throw err;
+    }
   },
 };
