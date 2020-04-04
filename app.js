@@ -7,8 +7,11 @@ const app = express();
 const port = 3000;
 const grQlSchema = require("./graphql/schema/index");
 const resolvers = require("./graphql/resolvers/index");
+const auth = require('./middleware/auth');
 
 app.use(express.json());
+
+app.use(auth);
 
 // all requests are sent to one end point
 app.use(

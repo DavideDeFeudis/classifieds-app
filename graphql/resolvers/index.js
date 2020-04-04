@@ -49,19 +49,17 @@ module.exports = {
       throw err;
     }
   },
-  createProduct: async (args) => {
+  createProduct: async (args, req) => {
+    if (!req.isAuth) throw new Error("not authorized to create a product");
     try {
       const product = new Product({
         name: args.productInput.name,
         description: args.productInput.description,
         price: +args.productInput.price, // + converts to number
-        // for now we hard code the creator id
-        // mongoose converts it to an objectId for mongo
-        creator: "5e8828b4b93b8edc514dbbc1",
+        creator: req.userId,
       });
-
       const savedProduct = await product.save();
-      const user = await User.findById("5e8828b4b93b8edc514dbbc1"); // find the creator
+      const user = await User.findById(req.userId); // find the creator
       if (!user) throw new Error("user does not exists");
       // add product to productsList of this user (or just the product id)
       await user.productsList.push(savedProduct);
