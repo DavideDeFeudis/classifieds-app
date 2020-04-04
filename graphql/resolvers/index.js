@@ -1,6 +1,8 @@
+require("dotenv").config();
 const bcrypt = require("bcrypt");
 const Product = require("../../models/product");
 const User = require("../../models/user");
+const jwt = require("jsonwebtoken");
 
 // getCreator populates the creator prop (instead of Product.populate('creator'))
 // for nested queries
@@ -92,5 +94,19 @@ module.exports = {
     } catch (err) {
       throw err;
     }
+  },
+  login: async ({ email, pw }) => {
+    const user = await User.findOne({ email });
+    if (!user) throw new Error("user not found");
+    const match = await bcrypt.compare(pw, user.pw); // compare incoming pw with stored pw
+    if (!match) throw new Error("wrong password");
+    const token = jwt.sign(
+      { userId: user._id, email }, // the token can store custom data additionally to the default data
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1h",
+      }
+    );
+    return { userId: user._id, token, tokenExpiry: 1 };
   },
 };
