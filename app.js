@@ -13,6 +13,39 @@ const port = 3000;
 
 app.use(express.json());
 
+// getCreator populates the creator prop (instead of Product.populate('creator'))
+// for nested queries
+const getCreator = async (id) => {
+  try {
+    const creator = await User.findById(id);
+    return {
+      ...creator._doc,
+      pw: null,
+      // creator.productsList is a list of ids
+      productsList: getProductsList.bind(this, creator.productsList),
+    };
+  } catch (err) {
+    throw err;
+  }
+};
+
+// getProductsList populates the productsList prop, for nested queries
+const getProductsList = async (ids) => {
+  console.log("ids:", ids);
+  try {
+    const productsList = await Product.find({ _id: { $in: ids } }); // gets all products from this ids arr
+    console.log("productsList:", productsList);
+    return productsList.map((product) => {
+      return {
+        ...product._doc,
+        creator: getCreator.bind(this, product._doc.creator),
+      };
+    });
+  } catch (err) {
+    throw err;
+  }
+};
+
 // all requests are sent to one end point
 app.use(
   "/graphql",
@@ -27,12 +60,14 @@ app.use(
             name: String!
             description: String!
             price: Float!
+            creator: User!
         }
 
         type User {
             _id: ID!
             email: String!
-            pw: String 
+            pw: String
+            productsList: [Product!]!
         }
 
         input ProductInput {
@@ -66,7 +101,12 @@ app.use(
         // we must return to make graphql wait for async operation to complete
         return Product.find()
           .then((products) => {
-            return products;
+            return products.map((product) => {
+              return {
+                ...product._doc,
+                creator: getCreator.bind(this, product._doc.creator),
+              };
+            });
           })
           .catch((err) => {
             throw err;
@@ -80,14 +120,14 @@ app.use(
           // for now we hard code the creator id
           // later it will be passed automatically
           // mongoose converts it to an objectId for mongo
-          creator: "5e879736a6bbebd6f2539dda",
+          creator: "5e8828b4b93b8edc514dbbc1",
         });
         // we must return to make graphql wait for async operation to complete
         return product
           .save()
           .then((result) => {
             // we don't use the result, instead we get the creator
-            return User.findById("5e879736a6bbebd6f2539dda");
+            return User.findById("5e8828b4b93b8edc514dbbc1");
           })
           .then((user) => {
             if (!user) throw new Error("user does not exists");
@@ -96,8 +136,10 @@ app.use(
             return user.save();
           })
           .then((user) => {
-            // don't use user, instead return product to the UI
-            return product;
+            return {
+              ...product._doc,
+              creator: getCreator.bind(this, product._doc.creator),
+            };
           })
           .catch((err) => {
             throw err;
