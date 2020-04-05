@@ -20,6 +20,7 @@ Add .env file to the project:
 
 ```bash
 MONGO_URL=<VALUE>
+JWT_SECRET=<VALUE>
 ```
 
 ## License
