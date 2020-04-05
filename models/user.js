@@ -11,9 +11,7 @@ const userSchema = new mongoose.Schema({
   },
   productsList: [
     {
-      // productsList stores a list of IDs
       type: mongoose.Schema.Types.ObjectId,
-      // sets up the relation with the product model
       ref: "Product"
     }
   ]

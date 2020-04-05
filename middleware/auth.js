@@ -1,7 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 
-// this middleware never throws an error, it only sets isAuth and potentially userId
 module.exports = (req, res, next) => {
   const header = req.get("Authorization");
   if (!header) {
@@ -9,7 +8,6 @@ module.exports = (req, res, next) => {
     return next();
   }
   const token = header.split(" ")[1];
-  console.log("header:", header);
   if (!token) {
     req.isAuth = false;
     return next();

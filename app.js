@@ -1,26 +1,21 @@
 require("dotenv").config();
 const express = require("express");
-// is a middleware function that forwards queries to the resolver
 const graphqlHttp = require("express-graphql");
 const mongoose = require("mongoose");
 const app = express();
-const port = 3000;
 const grQlSchema = require("./graphql/schema/index");
 const resolvers = require("./graphql/resolvers/index");
-const auth = require('./middleware/auth');
+const auth = require("./middleware/auth");
+const port = process.env.PORT || 3000;
 
 app.use(express.json());
-
 app.use(auth);
 
-// all requests are sent to one end point
 app.use(
   "/graphql",
   graphqlHttp({
     schema: grQlSchema,
-    // resolvers, must match schema entries
     rootValue: resolvers,
-    // add graphiql: true to use http://localhost:3000/graphql
     graphiql: true,
   })
 );
@@ -34,7 +29,7 @@ mongoose
   })
   .then(() => {
     app.listen(port, () => {
-      console.log("Example app listening on port 3000");
+      console.log(`App listening on port ${port}`);
     });
   })
   .catch((err) => {

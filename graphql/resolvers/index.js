@@ -4,26 +4,21 @@ const Product = require("../../models/product");
 const User = require("../../models/user");
 const jwt = require("jsonwebtoken");
 
-// getCreator populates the creator prop (instead of Product.populate('creator'))
-// for nested queries
 const getCreator = async (id) => {
   try {
     const creator = await User.findById(id);
     return {
       ...creator._doc,
       pw: null,
-      // creator.productsList is a list of ids
       productsList: getProductsList.bind(this, creator.productsList),
     };
   } catch (err) {
     throw err;
   }
 };
-
-// getProductsList populates the productsList prop, for nested queries
 const getProductsList = async (ids) => {
   try {
-    const productsList = await Product.find({ _id: { $in: ids } }); // gets all products from this ids arr
+    const productsList = await Product.find({ _id: { $in: ids } });
     return productsList.map((product) => {
       return {
         ...product._doc,
@@ -55,16 +50,14 @@ module.exports = {
       const product = new Product({
         name: args.productInput.name,
         description: args.productInput.description,
-        price: +args.productInput.price, // + converts to number
+        price: +args.productInput.price,
         creator: req.userId,
       });
       const savedProduct = await product.save();
-      const user = await User.findById(req.userId); // find the creator
+      const user = await User.findById(req.userId); 
       if (!user) throw new Error("user does not exists");
-      // add product to productsList of this user (or just the product id)
       await user.productsList.push(savedProduct);
       await user.save();
-      // this is the product that we are required to return (specified in grql schema)
       return {
         ...savedProduct._doc,
         creator: getCreator.bind(this, savedProduct._doc.creator),
@@ -75,19 +68,15 @@ module.exports = {
   },
   createUser: async (args) => {
     try {
-      // check if user with this email already exists in db
       const existingUser = await User.findOne({ email: args.userInput.email });
       if (existingUser)
-        throw new Error("a user with this email already exists");
+        throw new Error("user with this email already exists");
       const hashedPw = await bcrypt.hash(args.userInput.pw, 10);
-      // build new user with hashed pw
       const user = new User({
         email: args.userInput.email,
         pw: hashedPw,
       });
       const createdUser = await user.save();
-      // this is the user sent to the UI, set pw to null
-      // _doc contains props excluding metadata (must use if spread)
       return { ...createdUser._doc, pw: null };
     } catch (err) {
       throw err;
@@ -96,10 +85,10 @@ module.exports = {
   login: async ({ email, pw }) => {
     const user = await User.findOne({ email });
     if (!user) throw new Error("user not found");
-    const match = await bcrypt.compare(pw, user.pw); // compare incoming pw with stored pw
+    const match = await bcrypt.compare(pw, user.pw); 
     if (!match) throw new Error("wrong password");
     const token = jwt.sign(
-      { userId: user._id, email }, // the token can store custom data additionally to the default data
+      { userId: user._id, email }, 
       process.env.JWT_SECRET,
       {
         expiresIn: "1h",
